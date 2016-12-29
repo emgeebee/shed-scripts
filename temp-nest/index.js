@@ -1,10 +1,12 @@
 var https = require('https');
+var querystring = require('querystring');
+
+var email = 'mail@emgeebee.com'; //what you use to login to nest
+var password = 'xOmR$6nP7uW2a7R' ////what you use to login to nest
 
 function doGet(login_auth) {
 // you only need to modify the next four lines of this code then publish web app
-  var email = 'mail@emgeebee.com'; //what you use to login to nest
-  var password = 'xOmR$6nP7uW2a7R' ////what you use to login to nest
-  
+
 /*  to publish web app just:
   1) Make sure the four variables are set above before you publish
   2) Click Publish --> Deploy as web app
@@ -28,55 +30,66 @@ function doGet(login_auth) {
 
   var options = {
     "headers" : headers,
-    "hostname": "home.nest.com",
+    "hostname": login_auth['urls']['transport_url'].replace("https://", ""),
     "path": "/v2/mobile/user."+login_auth['userid']
   };
-
+console.log(options);
   var request= https.get(options, (res) => {
-  var result=JSON.parse(res);
- 
-  var structure_id = result['user'][login_auth['userid']]['structures'][0].split('.')[1]
-  var device_id    = result['structure'][structure_id]['devices'][0].split('.')[1]
- 
-  var current_temp = result["shared"][device_id]["current_temperature"];
-  var target_temp  = result["shared"][device_id]["target_temperature"];
-  var humidity     = result["device"][device_id]["current_humidity"]/100;
-  var auto_away    = result["shared"][device_id]["auto_away"];
-  var heater_state = result["shared"][device_id]["hvac_heater_state"];
-  var time = new Date();
- 
-  return [ time, current_temp, target_temp, outside_temp, humidity, heater_state, auto_away ];
-})
+    res.setEncoding('utf8');
+    let response = "";
+    res.on('data', (chunk) => {
+        response += chunk;
+    });
+
+    res.on('end', () => {
+        console.log('a', response);
+        var result=JSON.parse(response);
+
+        var structure_id = result['user'][login_auth['userid']]['structures'][0].split('.')[1]
+        var device_id    = result['structure'][structure_id]['devices'][0].split('.')[1]
+
+        var current_temp = result["shared"][device_id]["current_temperature"];
+        var target_temp  = result["shared"][device_id]["target_temperature"];
+        var humidity     = result["device"][device_id]["current_humidity"]/100;
+        var auto_away    = result["shared"][device_id]["auto_away"];
+        var heater_state = result["shared"][device_id]["hvac_heater_state"];
+        var time = new Date();
+
+        console.log([ time, current_temp, target_temp, humidity, heater_state, auto_away ]);
+     })
+  })
 }
 
 function performLogin(email, password) {
-  var payload = {
+  let payload = {
     "username" : email,
     "password" : password
   };
-  
-  var options = {
+
+  let options = {
     "hostname": "home.nest.com",
     "method": "POST",
     "path": "/user/login",
-    "data": payload
+    "headers": {
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
   };
- 
+
   let post_req = https.request(options, (res) => {
-    
+
     res.setEncoding('utf8');
     res.on('data', (chunk) => {
         console.log(chunk);
         if (res.statusCode !== 200) {
             throw "Invalid login credentials";
         }
-        doGet(JSON.parse(response));
+        doGet(JSON.parse(chunk));
     })
   });
 
-
-  post_req.write(JSON.stringify(payload));
+  console.log(querystring.stringify(payload));
+  post_req.write(querystring.stringify(payload));
   post_req.end();
 }
 
-performLogin();
+performLogin(email, password);
